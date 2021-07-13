@@ -1,1 +1,304 @@
+/************************************************************************  
 
+/**********************************************************************/   
+#include <REG52.H>    
+#include <INTRINS.H>         
+#define doa 0x30*2
+#define re 0x2b*2
+#define mi 0x26*2
+#define so 0x20*2
+#define la 0x1c*2
+#define do_1 0x18*2
+#define re_1 0x15*2
+#define so_2 0x40*2
+#define la_2 0x38*2
+sbit Beep =  P3^6 ; 
+sbit P1_0 = P1^0;
+sbit P1_1 = P1^1;
+sbit P1_2 = P1^2;
+sbit P1_3 =P1^3;
+sbit P3_0 = P3^0;
+sbit P3_1 = P3^1;
+sbit P3_2 = P3^2;
+sbit P2_3 = P2^3;
+sbit P2_4 = P2^4;
+sbit P2_5 = P2^5;
+sbit P2_6 = P2^6;
+sbit P2_7 =P2^7;
+sbit P2_0 = P2^0;
+unsigned int a;//控制显示LED的值
+unsigned int PWM_control=0;//控制是否输出
+unsigned char dingshi=0;    //
+unsigned int ting=0;        //暂停边沿判断 
+unsigned int shang=0;       //上一首边沿判断
+unsigned int xia=0;         //下一首边沿判断 
+unsigned int bo=0;          //播放边沿判断 
+unsigned int jia=0;         //音量放大边沿判断 
+unsigned int jian=0;        //音量减小边沿判断 
+unsigned char code table[]={0xc0,0xf9,0xa4,0xb0,0x99,0x92,0x82,	
+                        0xf8,0x80,0x90};   
+unsigned char n=0;  //n为节拍常数变量    
+unsigned char code music_tab[] =  
+{0x18, 0x30, 0x1C , 0x10,     
+0x20, 0x40, 0x1C , 0x10,   
+0x18, 0x10, 0x20 , 0x10,   
+0x1C, 0x10, 0x18 , 0x40,   
+0x1C, 0x20, 0x20 , 0x20,   
+0x1C, 0x20, 0x18 , 0x20,   
+0x20, 0x80, 0xFF , 0x20,   
+0x30, 0x1C, 0x10 , 0x18,   
+0x20, 0x15, 0x20 , 0x1C,   
+0x20, 0x20, 0x20 , 0x26,   
+0x40, 0x20, 0x20 , 0x2B,      
+0x20, 0x20, 0x26 , 0x20,   
+0x2B, 0x20, 0x30 , 0x20,   
+0x2B, 0x40, 0x20 , 0x15,   
+0x1F, 0x05, 0x20 , 0x10,      
+0x18, 0x80, 0x00,0x00};
+
+unsigned char code music_tab1[]={
+0x20, 0x26, 0x20 , 0x20,   
+0x20, 0x30, 0x80 , 0xFF,   
+0x20, 0x20, 0x1C , 0x10,   
+0x18, 0x10, 0x20 , 0x20,   
+0x26, 0x20, 0x2B , 0x20,   
+0x30, 0x20, 0x2B , 0x40,   
+0x20, 0x20, 0x1C , 0x10,   
+0x18, 0x10, 0x20 , 0x20,   
+0x26, 0x20, 0x2B , 0x20,   
+0x30, 0x20, 0x2B , 0x40,   
+0x20, 0x30, 0x1C , 0x10,   
+0x18, 0x20, 0x15 , 0x20,   
+0x1C, 0x20, 0x20 , 0x20,      
+0x20, 0x10, 0x1C , 0x10,0x00,0x00
+};
+
+unsigned char code music_tab2[]={
+0x1C, 0x10, 0x20 , 0x20,   
+0x26, 0x20, 0x2B , 0x20,   
+0x30, 0x20, 0x2B , 0x40,   
+0x20, 0x30, 0x1C , 0x10,   
+0x18, 0x20, 0x15 , 0x20,   
+0x1C, 0x20, 0x20 , 0x20,   
+0x26, 0x40, 0x20 , 0x20,   
+0x2B, 0x20, 0x26 , 0x20,   
+0x20, 0x20, 0x30 , 0x30,   
+0x20, 0x30, 0x1C , 0x10,   
+0x18, 0x40, 0x1C , 0x20,   
+0x20, 0x20, 0x26 , 0x40,   
+0x13, 0x60, 0x18 , 0x20,   
+0x15, 0x40, 0x13 , 0x40,0x00,0x00
+};
+
+void int0()  interrupt 1   //采用中断0 控制节拍    
+{  TH0=0xd8;   
+   TL0=0xef;   
+   n--;   
+}   
+
+
+  
+void delay (unsigned char m)   //控制频率延时    
+{   
+ unsigned i=3*m;   
+ while(--i);   
+}   
+   
+void delayms(unsigned char a)  //豪秒延时子程序    
+{   
+  while(--a);                  //采用while(--a) 不要采用while(a--); 各位可编译一下看看汇编结果就知道了!    
+}   
+void display(int y,int x)						 //4位数码管不会同时显示
+{
+   unsigned char b=5;
+      P0=table[y];		//
+      P2_0 = 0;		//51单片机端口可读可写
+      delayms(5);
+      P2_0 = 1;
+	    P0=table[x];
+	    P2_3 = 0;		//51单片机端口可读可写
+      delayms(5);
+      P2_3 = 1;
+}    
+void main()   
+{ unsigned char p,m;   //m为频率常数变量    
+  unsigned char i=0;
+unsigned char j=0;
+unsigned int ff=1;
+unsigned int z=1;
+unsigned int sound=2;	
+  TMOD&=0x0f;   
+  TMOD|=0x01;   
+  TH0=0xd8;TL0=0xef;   
+  IE=0x82;   
+play:   
+   while(1)   
+    {   if(P3_0==1&&P3_1==1&&P3_2==1)		//初始态
+			//if(P2_4==1&&P2_5==1&&P2_6==1&&P2_7==1)
+		{         P1_0=0;P1_1=0;P1_2=0;P1_3=0;
+           			bo=0;
+                ting=0;                            //!
+                shang=0;
+                xia=0;
+                jia=0;
+                jian=0;
+xx:             display(ff,sound);                           //判断音乐的播放和暂停
+						
+    if(z==0){        
+    a:switch(ff) {
+			case 1:{
+			p=music_tab[i];   
+       if(p==0x00)       { i=0, delayms(1000); goto play;}       
+       else if(p==0xff)  { i=i+1;delayms(100),TR0=0; goto a;}    
+            else         {m=music_tab[i++], n=music_tab[i++];}      
+             TR0=1;                                                
+           while(n!=0) {display(ff,sound);Beep=~Beep;
+					              switch(sound)
+												{
+													case 2:delay(m);break;
+													case 3:
+														if(Beep==1){delay(1.8*m);}
+														 else if(Beep==0){delay(0.2*m);}
+														 break;				
+													case 1: if(Beep==1){delay(0.2*m);}
+                                  else if(Beep==0){delay(1.8*m);}break;
+													default:delay(m);break;																	                                   																															
+												}
+												
+					                }                          
+       TR0=0;break;}
+			case 2:{
+			p=music_tab1[i];   
+       if(p==0x00)       { i=0, delayms(1000); goto play;}        
+       else if(p==0xff)  { i=i+1;delayms(100),TR0=0; goto a;}     
+            else         {m=music_tab1[i++], n=music_tab1[i++];}      
+             TR0=1;                                                
+           while(n!=0) {display(ff,sound);Beep=~Beep;
+                       switch(sound)
+												{
+													case 2:delay(m);break;
+													case 3:
+														if(Beep==1){delay(1.8*m);}
+														 else if(Beep==0){delay(0.2*m);}
+														 break;				
+													case 1: if(Beep==1){delay(0.2*m);}
+                                  else if(Beep==0){delay(1.8*m);}break;
+													default:delay(m);break;																	                                   																															
+												}
+					 }                            
+       TR0=0;break;}
+			case 3:{
+			p=music_tab2[i];   
+       if(p==0x00)       { i=0, delayms(1000); goto play;}         
+       else if(p==0xff)  { i=i+1;delayms(100),TR0=0; goto a;}      
+            else         {m=music_tab2[i++], n=music_tab2[i++];}      
+             TR0=1;                                                 
+           while(n!=0) {display(ff,sound);Beep=~Beep;
+						 switch(sound)
+												{
+													case 2:delay(m);break;
+													case 3:
+														if(Beep==1){delay(1.8*m);}
+														 else if(Beep==0){delay(0.2*m);}
+														 break;				
+													case 1: if(Beep==1){delay(0.2*m);}
+                                  else if(Beep==0){delay(1.8*m);}break;
+													default:delay(m);break;																	                                   																															
+												}
+					              }                            
+       TR0=0;break;}
+			default:break;			
+					}
+				}
+		else {Beep=0;}
+			}
+		if(P3_0==0&&P3_1==0&&P3_2==0)	//播放键 
+  // if(P2_4==0&&P2_5==1&&P2_6==1&&P2_7==1)	
+			{      P1_0=1;P1_1=1;P1_2=1;P1_3=0;   
+			
+                bo=1;
+                z=0;
+      goto xx;
+                 	 
+		}
+		if(P3_0==1&&P3_1==0&&P3_2==0)	 
+	//	if(P2_4==1&&P2_5==0&&P2_6==1&&P2_7==1)
+		{   P1_0=0;P1_1=1;P1_2=1;P1_3=0;
+			 delay(5);
+            if(P3_0==1&&P3_1==0&&P3_2==0)
+	//		if(P2_4==1&&P2_5==0&&P2_6==1&&P2_7==1)
+							{
+                ting=1;
+                z=1;
+                TR0=0;
+							goto xx;
+						}
+             	 
+		}
+		
+                                                      
+           
+		if(P3_0==0&&P3_1==1&&P3_2==0)
+	//	if(P2_4==1&&P2_5==1&&P2_6==0&&P2_7==1)
+		{  P1_0=1;P1_1=0;P1_2=1;P1_3=0;
+		    delay(5);
+            if(P3_0==0&&P3_1==1&&P3_2==0&&shang==0)
+		//	if(P2_4==1&&P2_5==1&&P2_6==0&&P2_7==1)
+							{
+               shang=1;
+               z=1;
+               ff=ff+1;
+               if(ff==4){ff=1;}
+               i=0;
+							 display(ff,sound);
+               goto  xx;
+                }
+            else{goto xx;} 	 
+		}
+		if(P3_0==1&&P3_1==1&&P3_2==0)
+	//	if(P2_4==1&&P2_5==1&&P2_6==1&&P2_7==0)
+		{  P1_0=0;P1_1=0;P1_2=1;P1_3=0;
+		    delay(5);
+            if(P3_0==1&&P3_1==1&&P3_2==0&&xia==0)
+		//	if(P2_4==1&&P2_5==1&&P2_6==1&&P2_7==0)
+			{
+               xia=1;
+               z=1;
+               ff=ff-1;
+               if(ff==0){ff=3;}
+               i=0;
+               goto xx;
+                }
+            else{goto xx;} 	 
+		} 
+		if(P3_0==0&&P3_1==0&&P3_2==1)
+	//	if(P2_4==1&&P2_5==1&&P2_6==0&&P2_7==1)
+		{ 
+		    delay(5);
+            if(P3_0==0&&P3_1==0&&P3_2==1&&jia==0)
+	//		if(P2_4==1&&P2_5==1&&P2_6==0&&P2_7==1&&jia==0)
+							{
+               jia=1;
+								if(sound==3){sound=sound;}
+							else	{sound=sound+1;}
+								
+               goto xx;
+                }
+            else goto xx; 	 
+		}
+		if(P3_0==1&&P3_1==0&&P3_2==1)
+	//	if(P2_4==1&&P2_5==1&&P2_6==1&&P2_7==0)
+		{
+		    delay(20);
+            if(P3_0==1&&P3_1==0&&P3_2==1&&jian==0)
+			//if(P2_4==1&&P2_5==1&&P2_6==1&&P2_7==0&&jian==0)
+							{
+                jian=1;
+								if(sound==1){sound=sound;}
+								else{sound=sound-1;}
+               goto xx;
+                }
+           else  goto xx;	 
+		}                                                
+    }   
+}  
